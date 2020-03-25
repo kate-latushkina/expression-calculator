@@ -3,13 +3,22 @@ function eval() {
     return;
 }
 
+
 function expressionCalculator(expr) {
-    expr = expr.replace(/[' ']/g,'');
-    // expr = expr.replace(/[-]/g,'m');
-    let arr = expr.split(''), 
-        firstBr = 0, lastBr = 0;
-    
-    arr.forEach(element => {
+    expr = expr.replace(/\s/g, '').replace(/[(]/g, " ( ").replace(/[)s]/g, " ) ").replace(/[+]/g, " + ").replace(/[-]/g, " - ").replace(/[*]/g, " * ").replace(/[/]/g, " / ").replace(/ {1,}/g, " ").trim();
+    var numbers = [];
+    var operators = [];
+    var priority = {
+        '-': 1,
+        '+': 1,
+        '*': 2,
+        '/': 2
+    }
+    expr = expr.split(' ');
+
+    let firstBr = 0;
+    let lastBr = 0;
+    expr.forEach(element => {
         if (element == '(') {
             firstBr++;
         }
@@ -18,84 +27,86 @@ function expressionCalculator(expr) {
         }
     });
     if (firstBr != lastBr) {
-        throw new Error('ExpressionError: Brackets must be paired');
-    }
-    
-    for (let i = 0; i < firstBr; i++) {
-        let firstBrInd = expr.lastIndexOf('('), lastBrInd = expr.indexOf(')', firstBrInd),
-        insideBr = expr.slice(firstBrInd+1, lastBrInd)
-        insideResult = calculation(insideBr);
-        expr = expr.replace('('+insideBr+')', insideResult);
-    }
-    
-    return calculation(expr);
-}
-function calculation(str) {
-    str = str.replace(/[-]/g,'m');
-    if (str[0] == 'm') {
-        str = '-'+str.slice(1);
-    }
-    let arr = str.split(''), countIndZnak = 0, tempStr = '';
-    for (let i = 0; i < str.length; i++) {
-        if (str[i] == '+' || str[i] == '*' || str[i] == '/') {
-            countIndZnak++;
-            tempStr += str[i];
-        }
-        else if (str[i] == 'm') {
-            if (str[i-1] == '+' || str[i-1] == '*' || str[i-1] == '/' || str[i-1] == 'm') {
-                tempStr += '-';
-            }
-            else{
-                tempStr += str[i];
-                countIndZnak++;
+        throw new Error("ExpressionError: Brackets must be paired");
+    } else {
+        for (let i = 0; i < expr.length; i++) {
+            if (!isNaN(+expr[i])) {
+                addNumbersArray(+expr[i]);
+            } else {
+                checkOperator(expr[i]);
             }
         }
-        else {
-            tempStr += str[i];
-        }
-    }
-    str = tempStr;
-    for (let i = 0; i < countIndZnak; i++) {
-        let firstIndZnak = 0, targetIndZnak = 0, lastIndZnak = 0;
-        targetIndZnak = str.match(/[+,m,*,/]/).index;
-        if (i+1 == countIndZnak) {
-            lastIndZnak = str.length-1;
-        }
-        else {
-            lastIndZnak = str.slice(targetIndZnak+1).match(/[+,m,*,/]/).index + targetIndZnak;
-            if ((str[targetIndZnak] == '+' || str[targetIndZnak] == 'm') && (str[lastIndZnak+1] == '*' || str[lastIndZnak+1] == '/')) {
-                firstIndZnak    = targetIndZnak+1;
-                targetIndZnak   = lastIndZnak+1;
-                if (i+2 == countIndZnak) {
-                    lastIndZnak = str.length-1;
-                }
-                else {
-                    lastIndZnak = str.slice(targetIndZnak+1).match(/[+,m,*,/]/).index + targetIndZnak;
-                }
-            }
-        }
-        let a = parseFloat(str.slice(firstIndZnak, targetIndZnak)), b = parseFloat(str.slice(targetIndZnak+1, lastIndZnak+1)), znak = str[targetIndZnak], result = 0;
-        if (znak == '+') {
-            result = a+b;
-        }
-        else if (znak == 'm') {
-            result = a-b;
-        }
-        else if (znak == '/') {
-            if (b == 0) {
-                throw new Error('TypeError: Division by zero.');
-            }
-            else{
-                result = a/b;
-            }
-        }
-        else if (znak == '*') {
-            result = a*b;
-        }
-        str = str.replace(str.slice(firstIndZnak, lastIndZnak+1), result);
+        finall();
     }
 
-    return parseFloat(str);
+
+    function finall() {
+        if (operators.length != 0) {
+            var number_1 = numbers[numbers.length - 2];
+            var number_2 = numbers[numbers.length - 1];
+            var operator_1 = operators[operators.length - 1];
+            numbers.pop();
+            numbers.pop();
+            operators.pop();
+            calc(number_1, number_2, operator_1);
+            finall();
+        }
+    }
+    return numbers[0];
+
+    function addNumbersArray(number) {
+        numbers.push(number);
+    }
+    function addOperatorsArray(operator) {
+        operators.push(operator);
+    }
+
+    function checkOperator(operator) {
+        if ((operators.length == 0 || priority[operator] > priority[operators[operators.length - 1]] || operators[operators.length - 1] == '(' || operator == '(') && operator != ')') {
+            addOperatorsArray(operator);
+        } else if (priority[operator] <= priority[operators[operators.length - 1]] && operator != ')') {
+            var number_1 = numbers[numbers.length - 2];
+            var number_2 = numbers[numbers.length - 1];
+            var operator_1 = operators[operators.length - 1];
+            numbers.pop();
+            numbers.pop();
+            operators.pop();
+            calc(number_1, number_2, operator_1);
+            checkOperator(operator);
+        } else if (operator == ')') {
+            if (operators[operators.length - 1] == '(') {
+                operators.pop();
+            } else {
+                var number_1 = numbers[numbers.length - 2];
+                var number_2 = numbers[numbers.length - 1];
+                var operator_1 = operators[operators.length - 1];
+                numbers.pop();
+                numbers.pop();
+                operators.pop();
+                calc(number_1, number_2, operator_1);
+                checkOperator(operator);
+            }
+        }
+    }
+
+    function calc(number_1, number_2, operator_1) {
+        if (operator_1 == '+') {
+            numbers.push(number_1 + number_2);
+        }
+        if (operator_1 == '-') {
+            numbers.push(number_1 - number_2);
+        }
+        if (operator_1 == '*') {
+            numbers.push(number_1 * number_2);
+        }
+        if (operator_1 == '/') {
+            if (number_2 == 0) {
+                throw new RangeError("TypeError: Division by zero.");
+            } else {
+                numbers.push(number_1 / number_2);
+            }
+        }
+    }
 }
 
 module.exports = {
